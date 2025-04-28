@@ -2,34 +2,28 @@ package SubSystems.Drive;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 public class DriveSubsystemAuto {
-
-    public static DcMotorEx leftFront = null;
-    public static DcMotorEx leftBack = null;
-    public static DcMotorEx rightBack = null;
-    public static DcMotorEx rightFront = null;
+    private DcMotorEx leftFront;
+    private DcMotorEx leftBack;
+    private DcMotorEx rightBack;
+    private DcMotorEx rightFront;
     
-    private static final double TICKS_PER_REVOLUTION = 560.0;
+    private final double TICKS_PER_REVOLUTION = 560.0;
     private static final double WHEEL_DIAMETER = 4.0; // inches
     private static final double WHEEL_BASE = 16.0;    // inches between wheels
+    private static final double WHEEL_CIRCUMFERENCE = Math.PI * WHEEL_DIAMETER;
     private Telemetry telemetry;
-    private static double wheelCircumference;
 
-    public DriveSubsystemAuto (HardwareMap hardwareMap) {
-        // Initialize motors
-        this.telemetry = telemetry; 
+    public DriveSubsystemAuto(HardwareMap hardwareMap, Telemetry telemetry) {
+        this.telemetry = telemetry;
         leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
         leftBack = hardwareMap.get(DcMotorEx.class, "leftBack");
         rightBack = hardwareMap.get(DcMotorEx.class, "rightBack");
         rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
-
-        wheelCircumference = Math.PI * WHEEL_DIAMETER;
         configureMotors();
     }
 
@@ -42,14 +36,23 @@ public class DriveSubsystemAuto {
         rightFront.setDirection(DcMotor.Direction.REVERSE);
         rightBack.setDirection(DcMotor.Direction.REVERSE);
 
-        // Use RUN_USING_ENCODER for closed-loop control
-        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        setMotorModes(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-   public static void forwardForDistance(double inches, Telemetry telemetry) {
+    public void drive(double forward, double strafe, double turn) {
+        double fl = forward + strafe + turn;
+        double fr = forward - strafe - turn;
+        double bl = forward - strafe + turn;
+        double br = forward + strafe - turn;
+
+        setMotorPowers(fl, fr, bl, br);
+    }
+
+    public void stopMotors() {
+        setMotorPowers(0, 0, 0, 0);
+    }
+
+    public void forwardForDistance(double inches) {
         resetEncoders();
         int ticks = calculateTicks(inches);
         setTargetPositions(ticks);
@@ -64,14 +67,15 @@ public class DriveSubsystemAuto {
         }
 
         stopMotors();
+        setMotorModes(DcMotor.RunMode.RUN_USING_ENCODER);
     }
-
 
     public void turn(int degrees, boolean clockwise) {
         double turnCircumference = Math.PI * WHEEL_BASE;
-        double ticksPerDegree = (TICKS_PER_REVOLUTION / wheelCircumference) * turnCircumference / 360.0;
+        double ticksPerDegree = (TICKS_PER_REVOLUTION / WHEEL_CIRCUMFERENCE) * turnCircumference / 360.0;
         int ticks = (int) (ticksPerDegree * degrees);
 
+        resetEncoders();
         if (clockwise) {
             setTargetPositionsForTurn(ticks, -ticks);
         } else {
@@ -80,20 +84,22 @@ public class DriveSubsystemAuto {
 
         runMotorsToPosition(0.5);
 
-        while (motorsBusy()) {
+        ElapsedTime runtime = new ElapsedTime();
+        while (motorsBusy() && runtime.seconds() < 10) {
             telemetry.addData("Turning", "Degrees: %d, Clockwise: %b", degrees, clockwise);
             telemetry.update();
         }
 
         stopMotors();
+        setMotorModes(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-    private static int calculateTicks(double inches) {
-        double rotations = inches / wheelCircumference;
+    private int calculateTicks(double inches) {
+        double rotations = inches / WHEEL_CIRCUMFERENCE;
         return (int) (rotations * TICKS_PER_REVOLUTION);
     }
 
-    private static void setTargetPositions(int ticks) {
+    private void setTargetPositions(int ticks) {
         leftFront.setTargetPosition(leftFront.getCurrentPosition() + ticks);
         leftBack.setTargetPosition(leftBack.getCurrentPosition() + ticks);
         rightFront.setTargetPosition(rightFront.getCurrentPosition() + ticks);
@@ -107,33 +113,31 @@ public class DriveSubsystemAuto {
         rightBack.setTargetPosition(rightBack.getCurrentPosition() + rightTicks);
     }
 
-    private static void runMotorsToPosition(double power) {
-        leftFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        leftBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        leftFront.setPower(power);
-        leftBack.setPower(power);
-        rightFront.setPower(power);
-        rightBack.setPower(power);
+    private void runMotorsToPosition(double power) {
+        setMotorModes(DcMotor.RunMode.RUN_TO_POSITION);
+        setMotorPowers(power, power, power, power);
     }
 
-    private static void resetEncoders() {
-        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+    private void resetEncoders() {
+        setMotorModes(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        setMotorModes(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-    private static boolean motorsBusy() {
+    private boolean motorsBusy() {
         return leftFront.isBusy() || leftBack.isBusy() || rightFront.isBusy() || rightBack.isBusy();
     }
 
-    public static void stopMotors() {
-        leftFront.setPower(0);
-        leftBack.setPower(0);
-        rightFront.setPower(0);
-        rightBack.setPower(0);
+    private void setMotorPowers(double fl, double fr, double bl, double br) {
+        leftFront.setPower(fl);
+        rightFront.setPower(fr);
+        leftBack.setPower(bl);
+        rightBack.setPower(br);
+    }
+
+    private void setMotorModes(DcMotor.RunMode mode) {
+        leftFront.setMode(mode);
+        leftBack.setMode(mode);
+        rightFront.setMode(mode);
+        rightBack.setMode(mode);
     }
 }
