@@ -2,13 +2,28 @@ package SubSystems.Vision;
 
 import androidx.core.math.MathUtils;
 
+import org.firstinspires.ftc.robotcore.internal.camera.calibration.CameraCalibration;
+import org.firstinspires.ftc.vision.VisionProcessor;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.openftc.easyopencv.OpenCvPipeline;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TurboObjectDetectionPipeline extends OpenCvPipeline {
+public class TurboObjectDetectionPipeline extends OpenCvPipeline implements VisionProcessor {
+//    private int CAMERA_WIDTH = 640;
+//    private int CAMERA_HEIGHT = 480;
+
+    @Override
+    public void init(int width, int height, CameraCalibration calibration) {
+//        this.CAMERA_WIDTH = width;
+//        this.CAMERA_HEIGHT = height;
+    }
+
+    @Override
+    public Object processFrame(Mat frame, long captureTimeNanos) {
+        return processFrame(frame);
+    }
 
     // Enum for Detection Modes
     public enum DetectionMode {
