@@ -1,4 +1,6 @@
-package org.firstinspires.ftc.teamcode;
+package SubSystems.Vision;
+
+import androidx.core.math.MathUtils;
 
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
@@ -33,7 +35,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline {
     // Detection Parameters
     private static final int MIN_CONTOUR_AREA = 500;
     private static final double ASPECT_RATIO_MIN = 0.5;
-    private static final double ASPECT_RATIO_MAX = 2.0;
+    private static final double ASPECT_RATIO_MAX = 3.0;
 
     // Processing Mats
     private final Mat hsv = new Mat();
@@ -166,6 +168,9 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline {
         String info = String.format("%s (%.0fpx)", detectedColor, width);
         Imgproc.putText(frame, info, new Point(rect.center.x + 10, rect.center.y),
                         Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
+    }
+    public boolean isObjectDetected() {
+        return !detectedColor.equals("None") && width > 0;
     }
 
     // Getters for external use

@@ -1,12 +1,14 @@
-package org.firstinspires.ftc.teamcode.AUTO;
+package AUTO;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.vision.VisionPortal;
-import org.firstinspires.ftc.teamcode.TurboObjectDetectionPipeline;
+import org.firstinspires.ftc.vision.VisionProcessor;
+
 import SubSystems.Drive.DriveSubsystemAuto;
+import SubSystems.Vision.TurboObjectDetectionPipeline;
 
 @Autonomous(name = "Color Tracking Auto (with DriveSubsystem)")
 public class ColorTrackingAuto extends LinearOpMode {
@@ -57,7 +59,7 @@ public class ColorTrackingAuto extends LinearOpMode {
 
         visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .addProcessor(objectDetector)
+                .addProcessor((VisionProcessor) objectDetector)
                 .build();
 
         FtcDashboard.getInstance().startCameraStream(visionPortal, 30);
@@ -65,10 +67,10 @@ public class ColorTrackingAuto extends LinearOpMode {
 
     private void moveToObject() {
         int imageCenterX = 320;
-        int objectX = objectDetector.getCentroidX();
-        int objectWidth = objectDetector.getWidth();
+        double objectX = objectDetector.getCentroidX();
+        double objectWidth = objectDetector.getWidth();
 
-        int errorX = objectX - imageCenterX;
+        double errorX = objectX - imageCenterX;
 
         double strafePower = errorX * STRAFE_Kp;
         double forwardPower = (300 - objectWidth) * FORWARD_Kp;

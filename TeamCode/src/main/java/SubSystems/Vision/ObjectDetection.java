@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package SubSystems.Vision;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
@@ -15,7 +15,7 @@ public class ObjectDetection {
     public static final double OBJECT_WIDTH_IN_REAL_WORLD_UNITS = 3.5; // Example real-world unit for object width
     private OpenCvCamera camera;
     private Telemetry telemetry;
-    private ObjectDetectionPipeline objectDetectionPipeline;
+//    private ObjectDetectionPipeline objectDetectionPipeline;
 
     public ObjectDetection(HardwareMap hardwareMap, Telemetry telemetry) {
         this.telemetry = telemetry;
@@ -28,9 +28,9 @@ public class ObjectDetection {
     }
 
     // Getter for the ObjectDetectionPipeline instance to access the processed values
-    public ObjectDetectionPipeline getPipeline() {
-        return objectDetectionPipeline;
-    }
+//    public ObjectDetectionPipeline getPipeline() {
+//        return objectDetectionPipeline;
+//    }
 
     // Initialize and start the camera with the object detection pipeline
     private void startObjectDetectionPipeline(HardwareMap hardwareMap) {
@@ -38,10 +38,10 @@ public class ObjectDetection {
         camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"));
 
         // Set up a custom OpenCV pipeline for additional processing
-        objectDetectionPipeline = new ObjectDetectionPipeline();
+//        objectDetectionPipeline = new ObjectDetectionPipeline();
 
         // Set the pipeline
-        camera.setPipeline(objectDetectionPipeline);
+//        camera.setPipeline(objectDetectionPipeline);
 
         // Open and start the camera
         camera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
@@ -73,7 +73,7 @@ public class ObjectDetection {
     }
 
     // Returns the detected color as a string based on the pipeline's result
-    public String getDetectedColor() {
-        return objectDetectionPipeline.getDetectedColor();
-    }
+//    public String getDetectedColor() {
+//    return objectDetectionPipeline.getDetectedColor();
+//    }
 }

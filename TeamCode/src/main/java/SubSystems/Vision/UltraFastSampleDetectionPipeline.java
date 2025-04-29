@@ -1,3 +1,5 @@
+package SubSystems.Vision;
+
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.openftc.easyopencv.OpenCvPipeline;
@@ -97,24 +99,23 @@ public class UltraFastSampleDetectionPipeline extends OpenCvPipeline {
 }
 
 
----
 
-⚡ How to Use in OpMode
-
-Camera start:
-
-camera.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
-camera.setPipeline(new UltraFastSampleDetectionPipeline());
-
-Access detection:
-
-UltraFastSampleDetectionPipeline pipeline = new UltraFastSampleDetectionPipeline();
-camera.setPipeline(pipeline);
-
-// later inside loop:
-RotatedRect sample = pipeline.getClosestSample();
-if (sample != null) {
-    telemetry.addData("Sample Center", sample.center);
-    telemetry.addData("Sample Distance", pipeline.closestDistance);
-}
-
+//        ⚡ How to Use in OpMode
+//
+//Camera start:
+//
+//        camera.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
+//camera.setPipeline(new UltraFastSampleDetectionPipeline());
+//
+//Access detection:
+//
+//UltraFastSampleDetectionPipeline pipeline = new UltraFastSampleDetectionPipeline();
+//camera.setPipeline(pipeline);
+//
+//// later inside loop:
+//RotatedRect sample = pipeline.getClosestSample();
+//if (sample != null) {
+//        telemetry.addData("Sample Center", sample.center);
+//    telemetry.addData("Sample Distance", pipeline.closestDistance);
+//}
+//
