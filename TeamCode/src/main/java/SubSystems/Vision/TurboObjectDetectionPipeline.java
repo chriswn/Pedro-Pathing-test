@@ -1,7 +1,12 @@
 package SubSystems.Vision;
 
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import androidx.core.math.MathUtils;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.internal.camera.calibration.CameraCalibration;
 import org.firstinspires.ftc.vision.VisionProcessor;
 import org.opencv.core.*;
@@ -10,47 +15,25 @@ import org.openftc.easyopencv.OpenCvPipeline;
 import java.util.ArrayList;
 import java.util.List;
 
+@Config
 public class TurboObjectDetectionPipeline extends OpenCvPipeline implements VisionProcessor {
-//    private int CAMERA_WIDTH = 640;
-//    private int CAMERA_HEIGHT = 480;
 
-    @Override
-    public void init(int width, int height, CameraCalibration calibration) {
-//        this.CAMERA_WIDTH = width;
-//        this.CAMERA_HEIGHT = height;
-    }
-
-    @Override
-    public Object processFrame(Mat frame, long captureTimeNanos) {
-        return processFrame(frame);
-    }
-
-    // Enum for Detection Modes
-    public enum DetectionMode {
-        RED_YELLOW,
-        BLUE_YELLOW
-    }
-
-    private DetectionMode mode = DetectionMode.RED_YELLOW; // Default mode
-
-    public void setDetectionMode(DetectionMode mode) {
-        this.mode = mode;
-    }
-
-    // HSV Color Ranges
-    private static final Scalar RED_LOWER1 = new Scalar(0, 70, 50);
-    private static final Scalar RED_UPPER1 = new Scalar(10, 255, 255);
-    private static final Scalar RED_LOWER2 = new Scalar(160, 70, 50);
-    private static final Scalar RED_UPPER2 = new Scalar(180, 255, 255);
-    private static final Scalar BLUE_LOWER = new Scalar(90, 50, 70);
-    private static final Scalar BLUE_UPPER = new Scalar(128, 255, 255);
-    private static final Scalar YELLOW_LOWER = new Scalar(15, 100, 100);
-    private static final Scalar YELLOW_UPPER = new Scalar(45, 255, 255);
+    // Configurable HSV Color Ranges
+    public static Scalar RED_LOWER1 = new Scalar(0, 70, 50);
+    public static Scalar RED_UPPER1 = new Scalar(10, 255, 255);
+    public static Scalar RED_LOWER2 = new Scalar(160, 70, 50);
+    public static Scalar RED_UPPER2 = new Scalar(180, 255, 255);
+    public static Scalar BLUE_LOWER = new Scalar(90, 50, 70);
+    public static Scalar BLUE_UPPER = new Scalar(128, 255, 255);
+    public static Scalar YELLOW_LOWER = new Scalar(18, 200, 100);
+    public static Scalar YELLOW_UPPER = new Scalar(45, 255, 220);
 
     // Detection Parameters
-    private static final int MIN_CONTOUR_AREA = 500;
-    private static final double ASPECT_RATIO_MIN = 0.5;
-    private static final double ASPECT_RATIO_MAX = 3.0;
+    public static int MIN_CONTOUR_AREA = 500;
+    public static double ASPECT_RATIO_MIN = 0.5;
+    public static double ASPECT_RATIO_MAX = 3.0;
+
+    private DetectionMode mode = DetectionMode.RED_YELLOW; // Default mode
 
     // Processing Mats
     private final Mat hsv = new Mat();
@@ -64,9 +47,37 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     private double cY = 0;
     private double width = 0;
     private String detectedColor = "None";
+    private Scalar hsvAtCentroid = new Scalar(0, 0, 0); // Store HSV values at the centroid
 
     // Frame Skipping
     private int frameCounter = 0;
+
+    // Telemetry object
+    private Telemetry telemetry = FtcDashboard.getInstance().getTelemetry();
+
+    @Override
+    public void init(int width, int height, CameraCalibration calibration) {
+        // Optionally initialize camera calibration
+    }
+
+    @Override
+    public Object processFrame(Mat frame, long captureTimeNanos) {
+        return processFrame(frame);
+    }
+
+    public Scalar getHSVAtCentroid() {
+        return hsvAtCentroid;  // Return the HSV values at the centroid
+    }
+
+    // Enum for Detection Modes
+    public enum DetectionMode {
+        RED_YELLOW,
+        BLUE_YELLOW
+    }
+
+    public void setDetectionMode(DetectionMode mode) {
+        this.mode = mode;
+    }
 
     @Override
     public Mat processFrame(Mat input) {
@@ -123,7 +134,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
             if (aspectRatio < ASPECT_RATIO_MIN || aspectRatio > ASPECT_RATIO_MAX) continue;
 
             // Score larger and more centered objects higher
-            double score = area * (1 - Math.abs(rect.center.x - input.cols()/2.0)/input.cols());
+            double score = area * (1 - Math.abs(rect.center.x - input.cols() / 2.0) / input.cols());
             if (score > bestScore) {
                 bestScore = score;
                 bestRect = rect;
@@ -138,12 +149,21 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
             cY = bestRect.center.y;
             detectedColor = bestColor;
 
+            // Store the HSV values at the centroid
+            double[] pixelHSV = hsv.get((int) cY, (int) cX);  // Get HSV value at centroid (cX, cY)
+            if (pixelHSV != null) {
+                hsvAtCentroid = new Scalar(pixelHSV[0], pixelHSV[1], pixelHSV[2]);  // Convert to Scalar
+            } else {
+                hsvAtCentroid = new Scalar(0, 0, 0);  // Default to black if no HSV values found
+            }
+
             drawDetectionResult(input, bestRect);
         } else {
             detectedColor = "None";
             cX = 0;
             cY = 0;
             width = 0;
+            hsvAtCentroid = new Scalar(0, 0, 0);  // No detection, reset HSV
         }
 
         return input;
@@ -176,14 +196,26 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     private void drawDetectionResult(Mat frame, RotatedRect rect) {
         Point[] points = new Point[4];
         rect.points(points);
+
+        // Draw green rectangle around detected object in the frame
         for (int i = 0; i < 4; i++) {
-            Imgproc.line(frame, points[i], points[(i+1)%4], new Scalar(0, 255, 0), 2);
+            Imgproc.line(frame, points[i], points[(i + 1) % 4], new Scalar(0, 255, 0), 2);
         }
 
+        // Update the telemetry to include this data in the field overlay
+        TelemetryPacket packet = new TelemetryPacket();
+        packet.fieldOverlay()
+                .setFill("green")
+                .fillRect((int)rect.center.x - 50, (int)rect.center.y - 25, 100, 50);  // Adjust position/size
+
+        FtcDashboard.getInstance().sendTelemetryPacket(packet);
+
+        // Add text info to the frame itself (on the robot view)
         String info = String.format("%s (%.0fpx)", detectedColor, width);
         Imgproc.putText(frame, info, new Point(rect.center.x + 10, rect.center.y),
-                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
     }
+
     public boolean isObjectDetected() {
         return !detectedColor.equals("None") && width > 0;
     }

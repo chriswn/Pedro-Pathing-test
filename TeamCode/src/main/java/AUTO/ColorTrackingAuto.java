@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.VisionProcessor;
+import org.opencv.core.Scalar;
 import org.openftc.easyopencv.OpenCvPipeline;
 
 import SubSystems.Drive.DriveSubsystemAuto;
@@ -47,10 +48,24 @@ public class ColorTrackingAuto extends LinearOpMode {
                     drive.stopMotors();
                     telemetry.addData("Detection", "No object detected");
                 }
+// Update telemetry with current information
+
+
+                // Get HSV values at the centroid of the detected object (from the pipeline)
+                Scalar hsvAtCentroid = objectDetector.getHSVAtCentroid();
+                if (hsvAtCentroid != null) {
+                    telemetry.addData("HSV at Centroid", "H: %.2f, S: %.2f, V: %.2f",
+                            hsvAtCentroid.val[0], hsvAtCentroid.val[1], hsvAtCentroid.val[2]);
+                } else {
+                    telemetry.addData("HSV at Centroid", "No data");
+                }
+
 
                 telemetry.addData("Detected Color", objectDetector.getDetectedColor());
                 telemetry.addData("Object CX", objectDetector.getCentroidX());
                 telemetry.addData("Object Width", objectDetector.getWidth());
+                telemetry.addData("Current Mode", currentMode);
+
                 telemetry.update();
                 sleep(50);
             }
