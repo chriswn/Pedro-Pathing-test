@@ -5,7 +5,8 @@ import android.util.Size;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.stateMachineLoop;
+import com.qualcomm.robotcore.util.Range;
+
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.VisionProcessor;
@@ -14,7 +15,7 @@ import org.openftc.easyopencv.OpenCvPipeline;
 
 import SubSystems.Drive.DriveSubsystemAuto;
 import SubSystems.Vision.TurboObjectDetectionPipeline;
-import SubSystems.arm.ArmMovement;
+import SubSystems.Arm.ArmMovement;
 
 @Autonomous(name = "Full Auto Pickup", group = "Competition")
 public class AutoPickup extends LinearOpMode {
@@ -97,6 +98,9 @@ public class AutoPickup extends LinearOpMode {
         }
     }
 
+
+
+
     private void handleSearchState() {
         if (objectDetector.isObjectDetected()) {
             currentState = RobotState.ALIGNING;
@@ -164,6 +168,10 @@ public class AutoPickup extends LinearOpMode {
         sleep(1000);
         
         currentState = RobotState.RETRACTING;
+    }
+
+    private void handleCollectState() {
+        executeCollectionSequence();
     }
 
     private void handleRetractState() {
