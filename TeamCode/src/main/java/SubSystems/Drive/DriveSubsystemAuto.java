@@ -2,6 +2,7 @@ package SubSystems.Drive;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
@@ -33,8 +34,11 @@ public class DriveSubsystemAuto {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        rightFront.setDirection(DcMotor.Direction.REVERSE);
-        rightBack.setDirection(DcMotor.Direction.REVERSE);
+        rightFront.setDirection(DcMotor.Direction.FORWARD);
+        rightBack.setDirection(DcMotor.Direction.FORWARD);
+        leftBack.setDirection(DcMotor.Direction.REVERSE);
+        leftFront.setDirection(DcMotor.Direction.REVERSE);
+
 
         setMotorModes(DcMotor.RunMode.RUN_USING_ENCODER);
     }
@@ -44,6 +48,11 @@ public class DriveSubsystemAuto {
         double fr = forward - strafe - turn;
         double bl = forward - strafe + turn;
         double br = forward + strafe - turn;
+        telemetry.addData("Motor Powers", "FL: %.2f, FR: %.2f, BL: %.2f, BR: %.2f", fl, fr, bl, br);
+        telemetry.update();
+        if (strafe == 0 && turn == 0) {
+            fl = fr = bl = br = forward;  // All motors will run at the same speed.
+        }
 
         setMotorPowers(fl, fr, bl, br);
     }

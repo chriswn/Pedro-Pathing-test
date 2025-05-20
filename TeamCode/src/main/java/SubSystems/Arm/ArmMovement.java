@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
+
 public class ArmMovement {
 
     // Declare motors and servos
@@ -17,8 +18,8 @@ public class ArmMovement {
     // Constants
     private static final double TICKS_PER_REVOLUTION = 560.0;
     private static final double MOTOR_POWER = 0.5;
-    private static final double SERVO_OPEN_POSITION = 1.0;
-    private static final double SERVO_CLOSED_POSITION = 0.0;
+    private static final double SERVO_OPEN_POSITION = 0.3;
+    private static final double SERVO_CLOSED_POSITION = 1.0;
 
     private Telemetry telemetry;
 
@@ -98,14 +99,20 @@ public class ArmMovement {
 
     public void openGripper() {
         leftClaw.setPosition(SERVO_OPEN_POSITION);
-        rightClaw.setPosition(SERVO_OPEN_POSITION);
+        rightClaw.setPosition(SERVO_CLOSED_POSITION);
         telemetry.addData("Gripper", "Opened");
         telemetry.update();
     }
-
+    public void Gripper() {
+        double leftClawPosition = leftClaw.getPosition();
+        double rightClawPosition = rightClaw.getPosition();
+        telemetry.addData("Left Claw Position", leftClawPosition);
+        telemetry.addData("Right Claw Position", rightClawPosition);
+        telemetry.update();
+    }
     public void closeGripper() {
         leftClaw.setPosition(SERVO_CLOSED_POSITION);
-        rightClaw.setPosition(SERVO_CLOSED_POSITION);
+        rightClaw.setPosition(SERVO_OPEN_POSITION);
         telemetry.addData("Gripper", "Closed");
         telemetry.update();
     }

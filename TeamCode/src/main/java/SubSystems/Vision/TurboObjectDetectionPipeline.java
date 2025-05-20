@@ -157,6 +157,14 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
                 hsvAtCentroid = new Scalar(0, 0, 0);  // Default to black if no HSV values found
             }
 
+            // Calculate distance from the camera
+            double distance = calculateDistance(width);
+
+            // Update telemetry
+            telemetry.addData("Detected Color", detectedColor);
+            telemetry.addData("Object Width", width);
+            telemetry.addData("Object Distance", String.format("%.2f", distance));  // Show distance in telemetry
+
             drawDetectionResult(input, bestRect);
         } else {
             detectedColor = "None";
@@ -165,8 +173,22 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
             width = 0;
             hsvAtCentroid = new Scalar(0, 0, 0);  // No detection, reset HSV
         }
-
+        double distance = calculateDistance(width);
         return input;
+    }
+
+    // Method to calculate the distance from the camera to the object
+    public double calculateDistance(double objectWidthInPixels) {
+
+        double realObjectSize = 6.0; // e.g., 6 inches (adjust according to your object size)
+
+        // Focal length
+        double focalLength = 500.0; // Placeholder value, calibrate for your camera
+
+        // Calculate the distance
+        double distance = (realObjectSize * focalLength) / objectWidthInPixels;
+
+        return distance;
     }
 
     private String determineColor(RotatedRect rect, Size frameSize) {
