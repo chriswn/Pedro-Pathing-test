@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+    <!-- Motor Configurations -->
+    <motors>
+        <!-- Motors connected to the Expansion Hub -->
+        <motor name="leftFront" port="0" direction="FORWARD"/>
+        <motor name="leftBack" port="1" direction="FORWARD"/>
+        <motor name="rightBack" port="2" direction="REVERSE"/>
+        <motor name="rightFront" port="3" direction="REVERSE"/>
+
+        <!-- Motors connected to the Expansion Hub for forearm and shoulder -->
+        <motor name="forearm" port="4" direction="FORWARD"/>
+        <motor name="shoulder" port="5" direction="REVERSE"/>
+    </motors>
+
+    <!-- Servo Configurations -->
+    <servos>
+        <servo name="leftClaw" port="0" direction="FORWARD"/>
+        <servo name="rightClaw" port="1" direction="REVERSE"/>
+    </servos>
+
+    <!-- Camera Configuration (Control Hub) -->
+    <camera>
+        <device name="webcam" port="0" type="USB"/>
+    </camera>
+</configuration>
