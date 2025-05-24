@@ -17,7 +17,7 @@ public class ArmMovement {
 
     // Constants
     private static final double TICKS_PER_REVOLUTION = 560.0;
-    private static final double MOTOR_POWER = 0.5;
+    private static final double MOTOR_POWER = 0.7;
     private static final double SERVO_OPEN_POSITION = 0.3;
     private static final double SERVO_CLOSED_POSITION = 1.0;
 

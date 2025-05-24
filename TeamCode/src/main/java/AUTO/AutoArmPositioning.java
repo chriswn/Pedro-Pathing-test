@@ -28,12 +28,15 @@ public class AutoArmPositioning extends LinearOpMode {
     private VisionPortal visionPortal;
 
     // Constants
-    private static final double STRAFE_KP = 0.008;
-    private static final double FORWARD_KP = 0.003;
+    private static final double STRAFE_KP = 0.015;
+    private static final double FORWARD_KP = 0.005;
     private static final int TARGET_CX = 340;
     private static final int MIN_WIDTH_FOR_PICKUP = 200;
     private static final int CX_TOLERANCE = 100;
     private static final double ARM_POSITION_OFFSET = 100; // Offset for arm position adjustment
+    private static final double MAX_STRAFE_ERROR = 100.0;  // Tune based on your camera/resolution
+    private static final long ALIGN_TIMEOUT_MS = 3000;     
+    private long alignStartTime = 0;  
 
     // State tracking
     private enum RobotState {
@@ -50,7 +53,7 @@ public class AutoArmPositioning extends LinearOpMode {
             while (opModeIsActive()) {
                 stateMachineLoop();
                 updateTelemetry();
-                sleep(20); // Keep loop running smoothly
+                sleep(15); // Keep loop running smoothly
             }
         }
 
@@ -67,14 +70,14 @@ public class AutoArmPositioning extends LinearOpMode {
         visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                 .addProcessor(objectDetector)
-                .setCameraResolution(new Size(640, 480))
+                .setCameraResolution(new Size(320, 240))
                 .setStreamFormat(VisionPortal.StreamFormat.YUY2)
                 .build();
         FtcDashboard.getInstance().startCameraStream(visionPortal, 30);
 
         // Arm initialization sequence
         arm.moveShoulderToPosition(100); // Engage encoders
-        sleep(500);
+        sleep(100);
         arm.stopMotors();
         arm.closeGripper();
         arm.openGripper();
@@ -114,43 +117,65 @@ public class AutoArmPositioning extends LinearOpMode {
         }
     }
 
-    private void handleAlignState() {
-        if (!objectDetector.isObjectDetected()) {
-            currentState = RobotState.SEARCHING;  // Object not found, go back to search
-            return;
-        }
-
-        double cx = objectDetector.getCentroidX();  // X position of the object
-        double width = objectDetector.getWidth();  // Width of the detected object
-
-        // Calculate alignment errors
-        double strafeError = cx - TARGET_CX;  // Error in X axis alignment
-
-        telemetry.addData("Aligning", "CentroidX: %.1f, Width: %.1f", cx, width);
-        telemetry.addData("strafeError", "%.1f", strafeError);
-
-        // Calculate motor power for strafe (side-to-side) alignment
-        double strafePower = strafeError * STRAFE_KP;
-
-        // Clamp values to avoid excessive movement or rotation
-        strafePower = Range.clip(strafePower, -0.3, 0.3);
-
-        // Define constant forward power for moving forward
-        double forwardPower = 0.4;  // Constant forward speed
-
-        // If aligned within tolerance, and the object is large enough, stop and start collecting
-        if (Math.abs(strafeError) < CX_TOLERANCE && width > MIN_WIDTH_FOR_PICKUP) {
-            telemetry.addData("Alignment Successful", "Ready to collect!");
-            drive.stopMotors();  // Stop movement
-            currentState = RobotState.COLLECTING;
-            executeCollectionSequence(width);  // Pass width to adjust arm
-        } else {
-            // Drive forward with constant speed and adjust strafe for alignment
-            drive.drive(forwardPower, strafePower, 0);  // Only adjusting strafePower for alignment
-        }
-
-        telemetry.update();  // Update telemetry
+private void handleAlignState() {
+    if (!objectDetector.isObjectDetected()) {
+        currentState = RobotState.SEARCHING;
+        alignStartTime = 0;  // Reset timer
+        return;
     }
+
+    double cx = objectDetector.getCentroidX();
+    double width = objectDetector.getWidth();
+
+    double strafeError = cx - TARGET_CX;
+
+    telemetry.addData("Aligning", "CentroidX: %.1f, Width: %.1f", cx, width);
+    telemetry.addData("strafeError", "%.1f", strafeError);
+    telemetry.addData("Debug", "TARGET_CX: %.1f, STRAFE_KP: %.3f", TARGET_CX, STRAFE_KP);
+
+    if (STRAFE_KP <= 0 || STRAFE_KP > 0.1) {
+        telemetry.addData("Warning", "Check STRAFE_KP value: %.3f", STRAFE_KP);
+    }
+
+    // Start the timer if it's the first call to this state
+    if (alignStartTime == 0) {
+        alignStartTime = System.currentTimeMillis();
+    }
+
+    // Check for alignment timeout
+    if (System.currentTimeMillis() - alignStartTime > ALIGN_TIMEOUT_MS) {
+        telemetry.addData("Align Timeout", "Timeout exceeded. Reverting to SEARCHING.");
+        drive.stopMotors();
+        currentState = RobotState.SEARCHING;
+        alignStartTime = 0;
+        telemetry.update();
+        return;
+    }
+
+    // Calculate motor power for strafing
+    double strafePower = Range.clip(strafeError * STRAFE_KP, -0.4, 0.4);
+
+    // Dynamic forward power based on alignment
+    double maxForwardPower = 0.5;
+    double minForwardPower = 0.1;
+    double alignmentFactor = Math.max(0, 1 - (Math.abs(strafeError) / MAX_STRAFE_ERROR));
+    double forwardPower = Range.clip(minForwardPower + (alignmentFactor * (maxForwardPower - minForwardPower)),
+                                     minForwardPower, maxForwardPower);
+
+    // Check if aligned and object is large enough
+    if (Math.abs(strafeError) < CX_TOLERANCE && width > MIN_WIDTH_FOR_PICKUP) {
+        telemetry.addData("Alignment Successful", "Ready to collect!");
+        drive.stopMotors();
+        currentState = RobotState.COLLECTING;
+        alignStartTime = 0;  // Reset timer
+        executeCollectionSequence(width);
+    } else {
+        // Continue driving forward with strafe correction
+        drive.drive(forwardPower, strafePower, 0);
+    }
+
+    telemetry.update();
+}
 
 
     private void executeCollectionSequence(double objectWidth) {
@@ -162,27 +187,25 @@ public class AutoArmPositioning extends LinearOpMode {
 
         // Move forearm first to ensure clearance for shoulder movement
         arm.rotateForearmToAngle(360);
-        sleep(800); // Wait for the forearm to move into position
+        sleep(250); // Wait for the forearm to move into position
 
         // Lower shoulder to the collection position (if possible)
         arm.moveShoulderToPosition(-350);
-        sleep(1000); // Allow time for the shoulder to move down
+        sleep(290); // Allow time for the shoulder to move down
 
         // Final approach to the object
         drive.drive(0.15, 0, 0);
-        sleep(300);
+        sleep(150);
         arm.openGripper();
         drive.stopMotors();
 
         // Open and close gripper to collect the object
-        arm.openGripper();
-        sleep(500);
+        sleep(50);
         arm.closeGripper();
-        sleep(800);
+        sleep(100);
 
         arm.moveShoulderToPosition(500);
-        arm.rotateForearmToAngle(-500); // Adjust forearm for better stability
-        sleep(1000);
+        arm.rotateForearmToAngle(-500); 
 
         arm.openGripper();
 
@@ -197,7 +220,7 @@ public class AutoArmPositioning extends LinearOpMode {
     private void handleRetractState() {
         // Back away from collection area
         drive.drive(-0.3, 0, 0);
-        sleep(1000);
+        sleep(700);
         drive.stopMotors();
         currentState = RobotState.COMPLETE;
     }
@@ -207,7 +230,7 @@ public class AutoArmPositioning extends LinearOpMode {
         double targetArmPosition = calculateArmPosition(objectWidth);
 
         // Move arm to target position
-        arm.moveShoulderToPosition((int) targetArmPosition); // Arm movement in encoder positions
+        arm.moveShoulderToPosition((int) targetArmPosition); 
     }
 
     private double calculateArmPosition(double objectWidth) {
@@ -223,7 +246,7 @@ public class AutoArmPositioning extends LinearOpMode {
         }
 
         // Clamp values to prevent moving beyond physical limits
-        position = Range.clip(position, 0, 1000);
+        position = Range.clip(position, 0, 800);
 
         telemetry.addData("Target Arm Position", "%.1f", position);
         return position;
