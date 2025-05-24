@@ -7,7 +7,7 @@ import org.openftc.easyopencv.OpenCvPipeline;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UltraFastSampleDetectionPipeline extends OpenCvPipeline {
+public class FastSampleDetectionPipeline extends OpenCvPipeline {
 
     // Constants
     private static final Scalar BLUE_LOWER = new Scalar(100, 150, 50);  // HSV lower bound for blue
