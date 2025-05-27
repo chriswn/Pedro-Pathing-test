@@ -17,7 +17,7 @@ public class ArmMovement {
 
     // Constants
     private static final double TICKS_PER_REVOLUTION = 560.0;
-    private static final double MOTOR_POWER = 0.7;
+    private static final double MOTOR_POWER = 1;
     private static final double SERVO_OPEN_POSITION = 0.3;
     private static final double SERVO_CLOSED_POSITION = 1.0;
 
@@ -41,6 +41,8 @@ public class ArmMovement {
         forearm.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shoulder.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
+
+
 
     // Expose motor positions
     public int getShoulderPosition() {
@@ -74,23 +76,23 @@ public class ArmMovement {
 
 
     public void moveArmToPosition(int shoulderTargetTicks, int forearmTargetTicks) {
-    shoulder.setTargetPosition(shoulderTargetTicks);
-    forearm.setTargetPosition(forearmTargetTicks);
+        shoulder.setTargetPosition(shoulderTargetTicks);
+        forearm.setTargetPosition(forearmTargetTicks);
 
-    shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-    forearm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        forearm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-    shoulder.setPower(MOTOR_POWER);
-    forearm.setPower(MOTOR_POWER);
+        shoulder.setPower(MOTOR_POWER);
+        forearm.setPower(MOTOR_POWER);
 
-    ElapsedTime runtime = new ElapsedTime();
-    while ((shoulder.isBusy() || forearm.isBusy()) && runtime.seconds() < 5) {
-        telemetry.addData("Shoulder Position", shoulder.getCurrentPosition());
-        telemetry.addData("Forearm Position", forearm.getCurrentPosition());
-        telemetry.update();
+        ElapsedTime runtime = new ElapsedTime();
+        while ((shoulder.isBusy() || forearm.isBusy()) && runtime.seconds() < 5) {
+            telemetry.addData("Shoulder Position", shoulder.getCurrentPosition());
+            telemetry.addData("Forearm Position", forearm.getCurrentPosition());
+            telemetry.update();
+        }
+        stopMotors();
     }
-    stopMotors();
-
 
     // Move only shoulder
     public void moveShoulderToPosition(int ticks) {
