@@ -52,25 +52,45 @@ public class ArmMovement {
     }
 
     // Move both arm components
-    public void moveArmToPosition(int shoulderTicks, int forearmTicks) {
-        shoulder.setTargetPosition(shoulder.getCurrentPosition() + shoulderTicks);
-        forearm.setTargetPosition(forearm.getCurrentPosition() + forearmTicks);
+    // public void moveArmToPosition(int shoulderTicks, int forearmTicks) {
+    //     shoulder.setTargetPosition(shoulder.getCurrentPosition() + shoulderTicks);
+    //     forearm.setTargetPosition(forearm.getCurrentPosition() + forearmTicks);
 
-        shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        forearm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    //     shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    //     forearm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        shoulder.setPower(MOTOR_POWER);
-        forearm.setPower(MOTOR_POWER);
+    //     shoulder.setPower(MOTOR_POWER);
+    //     forearm.setPower(MOTOR_POWER);
 
-        ElapsedTime runtime = new ElapsedTime();
-        while ((shoulder.isBusy() || forearm.isBusy()) && runtime.seconds() < 5) {
-            telemetry.addData("Shoulder Position", shoulder.getCurrentPosition());
-            telemetry.addData("Forearm Position", forearm.getCurrentPosition());
-            telemetry.update();
-        }
+    //     ElapsedTime runtime = new ElapsedTime();
+    //     while ((shoulder.isBusy() || forearm.isBusy()) && runtime.seconds() < 5) {
+    //         telemetry.addData("Shoulder Position", shoulder.getCurrentPosition());
+    //         telemetry.addData("Forearm Position", forearm.getCurrentPosition());
+    //         telemetry.update();
+    //     }
 
-        stopMotors();
+    //     stopMotors();
+    // }
+
+
+    public void moveArmToPosition(int shoulderTargetTicks, int forearmTargetTicks) {
+    shoulder.setTargetPosition(shoulderTargetTicks);
+    forearm.setTargetPosition(forearmTargetTicks);
+
+    shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    forearm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+    shoulder.setPower(MOTOR_POWER);
+    forearm.setPower(MOTOR_POWER);
+
+    ElapsedTime runtime = new ElapsedTime();
+    while ((shoulder.isBusy() || forearm.isBusy()) && runtime.seconds() < 5) {
+        telemetry.addData("Shoulder Position", shoulder.getCurrentPosition());
+        telemetry.addData("Forearm Position", forearm.getCurrentPosition());
+        telemetry.update();
     }
+    stopMotors();
+
 
     // Move only shoulder
     public void moveShoulderToPosition(int ticks) {
