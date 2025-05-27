@@ -43,7 +43,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     private final Mat combinedMask = new Mat();
 
     // Detection Results
-    private double cX = 0;
+    public double cX = 0;
     private double cY = 0;
     private double width = 0;
     private String detectedColor = "None";

@@ -100,7 +100,7 @@ public class FastSampleDetectionPipeline extends OpenCvPipeline {
 
 
 
-//        ⚡ How to Use in OpMode
+//         How to Use in OpMode
 //
 //Camera start:
 //
