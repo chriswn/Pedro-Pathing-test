@@ -9,8 +9,8 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 public class DriveSubsystemAuto {
     private DcMotorEx leftFront;
-    private DcMotorEx leftBack;
-    private DcMotorEx rightBack;
+    private DcMotorEx leftRear;
+    private DcMotorEx rightRear;
     private DcMotorEx rightFront;
     
     private final double TICKS_PER_REVOLUTION = 560.0;
@@ -22,21 +22,21 @@ public class DriveSubsystemAuto {
     public DriveSubsystemAuto(HardwareMap hardwareMap, Telemetry telemetry) {
         this.telemetry = telemetry;
         leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
-        leftBack = hardwareMap.get(DcMotorEx.class, "leftBack");
-        rightBack = hardwareMap.get(DcMotorEx.class, "rightBack");
+        leftRear = hardwareMap.get(DcMotorEx.class, "leftRear");
+        rightRear = hardwareMap.get(DcMotorEx.class, "rightRear");
         rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
         configureMotors();
     }
 
     private void configureMotors() {
         leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftRear.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightRear.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         rightFront.setDirection(DcMotor.Direction.FORWARD);
-        rightBack.setDirection(DcMotor.Direction.FORWARD);
-        leftBack.setDirection(DcMotor.Direction.REVERSE);
+        rightRear.setDirection(DcMotor.Direction.FORWARD);
+        leftRear.setDirection(DcMotor.Direction.REVERSE);
         leftFront.setDirection(DcMotor.Direction.REVERSE);
 
 
@@ -110,16 +110,16 @@ public class DriveSubsystemAuto {
 
     private void setTargetPositions(int ticks) {
         leftFront.setTargetPosition(leftFront.getCurrentPosition() + ticks);
-        leftBack.setTargetPosition(leftBack.getCurrentPosition() + ticks);
+        leftRear.setTargetPosition(leftRear.getCurrentPosition() + ticks);
         rightFront.setTargetPosition(rightFront.getCurrentPosition() + ticks);
-        rightBack.setTargetPosition(rightBack.getCurrentPosition() + ticks);
+        rightRear.setTargetPosition(rightRear.getCurrentPosition() + ticks);
     }
 
     private void setTargetPositionsForTurn(int leftTicks, int rightTicks) {
         leftFront.setTargetPosition(leftFront.getCurrentPosition() + leftTicks);
-        leftBack.setTargetPosition(leftBack.getCurrentPosition() + leftTicks);
+        leftRear.setTargetPosition(leftRear.getCurrentPosition() + leftTicks);
         rightFront.setTargetPosition(rightFront.getCurrentPosition() + rightTicks);
-        rightBack.setTargetPosition(rightBack.getCurrentPosition() + rightTicks);
+        rightRear.setTargetPosition(rightRear.getCurrentPosition() + rightTicks);
     }
 
     private void runMotorsToPosition(double power) {
@@ -133,20 +133,20 @@ public class DriveSubsystemAuto {
     }
 
     private boolean motorsBusy() {
-        return leftFront.isBusy() || leftBack.isBusy() || rightFront.isBusy() || rightBack.isBusy();
+        return leftFront.isBusy() || leftRear.isBusy() || rightFront.isBusy() || rightRear.isBusy();
     }
 
     private void setMotorPowers(double fl, double fr, double bl, double br) {
         leftFront.setPower(fl);
         rightFront.setPower(fr);
-        leftBack.setPower(bl);
-        rightBack.setPower(br);
+        leftRear.setPower(bl);
+        rightRear.setPower(br);
     }
 
     private void setMotorModes(DcMotor.RunMode mode) {
         leftFront.setMode(mode);
-        leftBack.setMode(mode);
+        leftRear.setMode(mode);
         rightFront.setMode(mode);
-        rightBack.setMode(mode);
+        rightRear.setMode(mode);
     }
 }

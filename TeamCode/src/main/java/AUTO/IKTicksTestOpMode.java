@@ -2,7 +2,7 @@ package AUTO;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-
+import Constants.ArmConstants;
 import SubSystems.Arm.ArmMovement;
 
 @TeleOp(name = "IK Test - Tick Movement Test", group = "Test")
