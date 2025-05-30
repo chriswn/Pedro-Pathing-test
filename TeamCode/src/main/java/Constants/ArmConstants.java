@@ -12,4 +12,8 @@ public class ArmConstants {
     // Compensation for mechanical play
     public static final int FOREARM_BACKLASH_COMP = 150;
     public static final int SHOULDER_BACKLASH_COMP = 50;
+
+    // Gear ratios
+    public static final double SHOULDER_GEAR_RATIO = 5.0;   // 5:1 reduction
+    public static final double FOREARM_GEAR_RATIO = 10.0;   // Worm gear reduction
 }

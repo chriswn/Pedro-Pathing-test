@@ -33,12 +33,13 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     public static double ASPECT_RATIO_MIN = 0.5;
     public static double ASPECT_RATIO_MAX = 3.0;
 
-    public static double FOCAL_LENGTH = 500.0; 
+    // Sample dimensions (inches)
+    public static final double SAMPLE_LENGTH = 3.5;  // Long dimension
+    public static final double SAMPLE_WIDTH = 1.5;   // Short dimension
+    public static final double SAMPLE_HEIGHT = 1.5;  // Height
     
-    // Add sample dimensions
-    private static final double SAMPLE_LENGTH = 3.5;  // inches
-    private static final double SAMPLE_WIDTH = 1.5;   // inches
-    private static final double SAMPLE_HEIGHT = 1.5;  // inches
+    // Camera calibration (adjust through dashboard)
+    public static double FOCAL_LENGTH = 500.0; 
 
     private DetectionMode mode = DetectionMode.RED_YELLOW; // Default mode
 
@@ -52,12 +53,11 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     // Detection Results
     public double cX = 0;
     private double cY = 0;
-    private double width = 0;
+    private double longSide = 0;  // Length of the longer dimension (pixels)
     private String detectedColor = "None";
+    private double aspectRatio = 1.0;
   
     private Scalar hsvAtCentroid = new Scalar(0, 0, 0); // Store HSV values at the centroid
-    
-    public static double PIXELS_PER_INCH = 50.0; 
 
     // Frame Skipping
     private int frameCounter = 0;
@@ -76,7 +76,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     }
 
     public Scalar getHSVAtCentroid() {
-        return hsvAtCentroid;  // Return the HSV values at the centroid
+        return hsvAtCentroid;
     }
 
     // Enum for Detection Modes
@@ -139,7 +139,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
             RotatedRect rect = Imgproc.minAreaRect(new MatOfPoint2f(contour.toArray()));
             double rectWidth = rect.size.width;
             double rectHeight = rect.size.height;
-            double aspectRatio = Math.max(rectWidth, rectHeight) / Math.min(rectWidth, rectHeight);
+            aspectRatio = Math.max(rectWidth, rectHeight) / Math.min(rectWidth, rectHeight);
 
             if (aspectRatio < ASPECT_RATIO_MIN || aspectRatio > ASPECT_RATIO_MAX) continue;
 
@@ -154,71 +154,60 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
 
         // Update results
         if (bestRect != null) {
-            width = Math.max(bestRect.size.width, bestRect.size.height);
+            double rectWidth = bestRect.size.width;
+            double rectHeight = bestRect.size.height;
+            longSide = Math.max(rectWidth, rectHeight);  // Store longer dimension
             cX = bestRect.center.x;
             cY = bestRect.center.y;
             detectedColor = bestColor;
 
-            // Store the HSV values at the centroid
-            double[] pixelHSV = hsv.get((int) cY, (int) cX);  // Get HSV value at centroid (cX, cY)
+            // Store HSV at centroid
+            double[] pixelHSV = hsv.get((int) cY, (int) cX);
             if (pixelHSV != null) {
-                hsvAtCentroid = new Scalar(pixelHSV[0], pixelHSV[1], pixelHSV[2]);  // Convert to Scalar
+                hsvAtCentroid = new Scalar(pixelHSV[0], pixelHSV[1], pixelHSV[2]);
             } else {
-                hsvAtCentroid = new Scalar(0, 0, 0);  // Default to black if no HSV values found
+                hsvAtCentroid = new Scalar(0, 0, 0);
             }
 
-            // Calculate distance from the camera
-            double distance = calculateDistance(width);
-            // double widthInInches = width / PIXELS_PER_INCH;
-            // double cXInInches = cX / PIXELS_PER_INCH;
-            // double cYInInches = cY / PIXELS_PER_INCH;
-            // 
-             double widthInInches = pixelsToInches(width);
-             double cXInInches = pixelsToInches(cX);
-             double cYInInches = pixelsToInches(cY);
+            // Calculate distance
+            double distance = calculateDistance(longSide);
 
             // Update telemetry
             telemetry.addData("Detected Color", detectedColor);
-            telemetry.addData("Object Width", width);
-            telemetry.addData("Object Distance", String.format("%.2f", distance));  // Show distance in telemetry
-
-            telemetry.addData("Object Width (in)", String.format("%.2f", widthInInches));
-            telemetry.addData("Object Centroid X (in)", String.format("%.2f", cXInInches));
-            telemetry.addData("Object Centroid Y (in)", String.format("%.2f", cYInInches));
-            telemetry.addData("Object Distance (in)", String.format("%.2f", distance));
-            
+            telemetry.addData("Long Side (pixels)", longSide);
+            telemetry.addData("Distance (inches)", String.format("%.2f", distance));
+            telemetry.addData("Centroid X", cX);
+            telemetry.addData("Centroid Y", cY);
+            telemetry.addData("Aspect Ratio", String.format("%.2f", aspectRatio));
 
             drawDetectionResult(input, bestRect);
         } else {
             detectedColor = "None";
             cX = 0;
             cY = 0;
-            width = 0;
-            hsvAtCentroid = new Scalar(0, 0, 0);  // No detection, reset HSV
+            longSide = 0;
+            aspectRatio = 1.0;
+            hsvAtCentroid = new Scalar(0, 0, 0);
         }
-        double distance = calculateDistance(width);
         return input;
     }
 
-    // Method to calculate the distance from the camera to the object
-    public double calculateDistance(double objectWidthInPixels) {
-        double objectWidthInInches = objectWidthInPixels / PIXELS_PER_INCH;
-
-        double realObjectSize = 6.0; 
-        double focalLength = 500.0; 
-            if (objectWidthInPixels <= 0) return 0;
-        // Calculate the distance
-        double distance = (realObjectSize * focalLength) / objectWidthInPixels;
-
-        return distance;
+    // Calculate distance using 3.5" dimension
+    public double calculateDistance(double objectLongSidePixels) {
+        if (objectLongSidePixels <= 0) return 0;
+        return (SAMPLE_LENGTH * FOCAL_LENGTH) / objectLongSidePixels;
     }
     
-    public double calculateHorizontalDistance(double objectWidth) {
-    if (objectWidth <= 0) return 0;
-    double apparentDistance = (realObjectSize * focalLength) / objectWidth;
-    double horizontalOffset = (getCentroidX() - 160) * (apparentDistance / focalLength);
-    return Math.sqrt(apparentDistance*apparentDistance - horizontalOffset*horizontalOffset);
-}
+    // Estimate object height above ground
+    public double getObjectHeight() {
+        return SAMPLE_HEIGHT;
+    }
+    
+    // Get aspect ratio for orientation detection
+    public double getAspectRatio() {
+        return aspectRatio;
+    }
+
     private String determineColor(RotatedRect rect, Size frameSize) {
         Point center = rect.center;
         int x = (int) MathUtils.clamp(center.x, 0, frameSize.width - 1);
@@ -247,38 +236,35 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
         Point[] points = new Point[4];
         rect.points(points);
 
-        // Draw green rectangle around detected object in the frame
+        // Draw green rectangle around detected object
         for (int i = 0; i < 4; i++) {
             Imgproc.line(frame, points[i], points[(i + 1) % 4], new Scalar(0, 255, 0), 2);
         }
 
-        // Update the telemetry to include this data in the field overlay
+        // Dashboard field overlay
         TelemetryPacket packet = new TelemetryPacket();
         packet.fieldOverlay()
                 .setFill("green")
-                .fillRect((int)rect.center.x - 50, (int)rect.center.y - 25, 100, 50);  // Adjust position/size
-
+                .fillRect((int)rect.center.x - 50, (int)rect.center.y - 25, 100, 50);
         FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
-        // Add text info to the frame itself (on the robot view)
-    String info = String.format("%s (%.1f in)", detectedColor, pixelsToInches(width));
+        // On-screen info: color, pixels, distance
+        String info = String.format("%s: %dpx (%.1fin)", 
+                detectedColor, 
+                (int)longSide, 
+                calculateDistance(longSide));
+                
         Imgproc.putText(frame, info, new Point(rect.center.x + 10, rect.center.y),
                 Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
     }
 
-     private double pixelsToInches(double pixels) {
-    return pixels / PIXELS_PER_INCH;
-    }
     public boolean isObjectDetected() {
-        return !detectedColor.equals("None") && width > 0;
+        return !detectedColor.equals("None") && longSide > 0;
     }
 
-    // Getters for external use
+    // Getters for vision data
     public double getCentroidX() { return cX; }
     public double getCentroidY() { return cY; }
-    public double getWidth() { return width; }
-    public double getCentroidXInches() { return pixelsToInches(cX); }
-    public double getCentroidYInches() { return pixelsToInches(cY); }
-    public double getWidthInches() { return pixelsToInches(width); }
+    public double getLongSidePixels() { return longSide; }
     public String getDetectedColor() { return detectedColor; }
 }

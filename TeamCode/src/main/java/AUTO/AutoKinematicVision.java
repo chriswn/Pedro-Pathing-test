@@ -1,22 +1,17 @@
 package AUTO;
 
 import android.util.Size;
-
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.Range;
-
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.vision.VisionPortal;
-
 import SubSystems.Arm.ArmMovement;
 import SubSystems.Drive.DriveSubsystemAuto;
 import SubSystems.Vision.TurboObjectDetectionPipeline;
 import SubSystems.InverseKinematics;
-
 import constants.ArmConstants;
-
 
 @Autonomous(name = "AutoKinematicVision", group = "Auto")
 public class AutoKinematicVision extends LinearOpMode {
@@ -33,23 +28,29 @@ public class AutoKinematicVision extends LinearOpMode {
     private static final double STRAFE_KP = 0.015;
     private static final double FORWARD_KP = 0.005;
     private static final int TARGET_CX = 160;
-    private static final int MIN_WIDTH_FOR_PICKUP = 200;
+    private static final int MIN_LONG_SIDE = 200;  // Minimum pixel size for pickup
     private static final int CX_TOLERANCE = 100;
-    private static final double ARM_POSITION_OFFSET = 100; // Offset for arm position adjustment
-    private static final double MAX_STRAFE_ERROR = 100.0;  // Tune based on your camera/resolution
+    private static final double MAX_STRAFE_ERROR = 100.0;
     private static final long ALIGN_TIMEOUT_MS = 3000;
 
+    // Arm dimensions
     private static final double SHOULDER_LENGTH = 10.0;
     private static final double FOREARM_LENGTH = 10.0;
-    //private static final double TICKS_PER_REV = 1440.0;
-   private static final double SHOULDER_TICKS_PER_REV = ArmConstants.SHOULDER_TICKS_PER_REV;
- private static final double FOREARM_TICKS_PER_REV = ArmConstants.FOREARM_TICKS_PER_REV;
+    private static final double SHOULDER_TICKS_PER_REV = ArmConstants.SHOULDER_TICKS_PER_REV;
+    private static final double FOREARM_TICKS_PER_REV = ArmConstants.FOREARM_TICKS_PER_REV;
+    private static final double MIN_SHOULDER_ANGLE = 0;
+    private static final double MAX_SHOULDER_ANGLE = 135;
+    private static final double MIN_FOREARM_ANGLE = 0;
+    private static final double MAX_FOREARM_ANGLE = 160;
 
-    private long alignStartTime = 0;
-
+    // Camera and object parameters
     private static final double CAMERA_FORWARD_OFFSET = 5.0; // Camera's forward offset from arm base (inches)
-    private static final double CAMERA_HEIGHT_OFFSET = 8.0; // Camera's height above ground (inches)
-    private static final double GROUND_HEIGHT = 2.0; // Object height (inches)
+    private static final double CAMERA_HEIGHT = 8.0;         // Camera's height above ground (inches)
+    private static final double ARM_BASE_HEIGHT = 10.0;      // Arm base height above ground (inches)
+    private static final double OBJECT_HEIGHT = 0.75;        // Object center height (1.5/2 = 0.75 inches)
+    private static final double FOCAL_LENGTH = 500.0;        // Must match vision pipeline
+    
+    private long alignStartTime = 0;
     
     // State tracking
     private enum RobotState {
@@ -77,7 +78,9 @@ public class AutoKinematicVision extends LinearOpMode {
         // Initialize subsystems
         drive = new DriveSubsystemAuto(hardwareMap, telemetry);
         arm = new ArmMovement(hardwareMap, telemetry);
-        ik = new InverseKinematics(SHOULDER_LENGTH, FOREARM_LENGTH);
+        ik = new InverseKinematics(  SHOULDER_LENGTH, FOREARM_LENGTH,
+         MIN_SHOULDER_ANGLE,MAX_SHOULDER_ANGLE,
+          MIN_FOREARM_ANGLE, MAX_FOREARM_ANGLE);
 
         // Initialize vision pipeline and camera
         objectDetector = new TurboObjectDetectionPipeline();
@@ -139,10 +142,10 @@ public class AutoKinematicVision extends LinearOpMode {
         }
 
         double cx = objectDetector.getCentroidX();
-        double width = objectDetector.getWidth();
+        double longSide = objectDetector.getLongSidePixels();
         double strafeError = cx - TARGET_CX;
 
-        telemetry.addData("Aligning", "CentroidX: %.1f, Width: %.1f", cx, width);
+        telemetry.addData("Aligning", "CentroidX: %.1f, LongSide: %.1f", cx, longSide);
         telemetry.addData("Strafe Error", "%.1f", strafeError);
 
         if (alignStartTime == 0) {
@@ -164,121 +167,76 @@ public class AutoKinematicVision extends LinearOpMode {
         double forwardPower = Range.clip(minForwardPower + (alignmentFactor * (maxForwardPower - minForwardPower)),
                 minForwardPower, maxForwardPower);
 
-        if (Math.abs(strafeError) < CX_TOLERANCE && width > MIN_WIDTH_FOR_PICKUP) {
+        if (Math.abs(strafeError) < CX_TOLERANCE && longSide > MIN_LONG_SIDE) {
             telemetry.addData("Alignment Successful", "Ready to collect!");
             drive.stopMotors();
             currentState = RobotState.COLLECTING;
             alignStartTime = 0;
-            executeCollectionSequence(width);
+            executeCollectionSequence();
         } else {
             drive.drive(forwardPower, strafePower, 0);
         }
     }
-// private void executeCollectionSequence(double objectWidth) {
-//     double objectDistance = objectDetector.calculateDistance(objectWidth);
 
-//     // Calculate horizontal offset from target center in pixels
-//     double cx = objectDetector.getCentroidX();
-//     double offsetPixels = cx - TARGET_CX;
-
-//     // Convert pixel offset to a real-world X coordinate (you need to tune this scale factor)
-//     double scaleFactor = 0.05; // meters or cm per pixel — tune as needed
-//     double targetX = offsetPixels * scaleFactor;
-//     double targetY = objectDistance; // forward distance from the robot
-
-//     // Use IK to get joint angles
-//     try {
-//         InverseKinematics.JointAngles angles = ik.calculateJointAngles(targetX, targetY);
-
-//         // Convert angles (degrees) to encoder ticks
-//         int shoulderTicks = (int) InverseKinematics.degreesToTicks(angles.shoulderAngle, SHOULDER_TICKS_PER_REV);
-//         int forearmTicks = (int) InverseKinematics.degreesToTicks(angles.forearmAngle, FOREARM_TICKS_PER_REV);
-
-//             shoulderTicks += ArmConstants.SHOULDER_BACKLASH_COMP;
-//             forearmTicks += ArmConstants.FOREARM_BACKLASH_COMP;
-
-//         telemetry.addData("IK Shoulder Angle", angles.shoulderAngle);
-//         telemetry.addData("IK Forearm Angle", angles.forearmAngle);
-//         telemetry.addData("Shoulder Ticks", shoulderTicks);
-//         telemetry.addData("Forearm Ticks", forearmTicks);
-
-//         // Move arm using IK-calculated ticks
-//         arm.moveArmToPosition(shoulderTicks, forearmTicks);
-//         sleep(500); // wait for arm to move, tune timing
-
-//         // Now perform gripper and other steps as before
-//         arm.openGripper();
-//         sleep(100);
-
-//         arm.closeGripper();
-//         sleep(100);
-
-//         // Retract arm
-//         arm.moveShoulderToPosition(500);
-//         arm.rotateForearmToAngle(-500);
-//         arm.openGripper();
-
-//     } catch (IllegalArgumentException e) {
-//         telemetry.addData("IK Error", e.getMessage());
-//     }
-// }
-private void executeCollectionSequence(double objectWidth) {
-    double apparentDistance = objectDetector.calculateDistance(objectWidth);
-    double cx = objectDetector.getCentroidX();
-    
-    // Calculate real-world coordinates relative to camera
-    double horizontalOffset = (cx - 160) * (apparentDistance / 500.0);
-    double forwardDistance = Math.sqrt(apparentDistance*apparentDistance - horizontalOffset*horizontalOffset);
-    
-    // Convert to arm base coordinates
-    double targetX = horizontalOffset;
-    double targetY = forwardDistance + CAMERA_FORWARD_OFFSET;
-    double targetZ = GROUND_HEIGHT - CAMERA_HEIGHT_OFFSET;  // Vertical offset
-    
-    // Use 3D position with fixed height
-    double planarDistance = Math.sqrt(targetX*targetX + targetY*targetY);
-    double planarAngle = Math.atan2(targetY, targetX);
-    double adjustedX = planarDistance * Math.cos(planarAngle);
-    double adjustedY = planarDistance * Math.sin(planarAngle);
-    
-    try {
-        // Pass adjusted planar coordinates to IK
-        InverseKinematics.JointAngles angles = ik.calculateJointAngles(adjustedX, adjustedY);
+    private void executeCollectionSequence() {
+        double longSidePixels = objectDetector.getLongSidePixels();
+        double cx = objectDetector.getCentroidX();
         
-             InverseKinematics.JointAngles angles = ik.calculateJointAngles(targetX, targetY);
+        // 1. Calculate straight-line distance to object
+        double apparentDistance = (TurboObjectDetectionPipeline.SAMPLE_LENGTH * FOCAL_LENGTH) / longSidePixels;
+        
+        // 2. Calculate horizontal offset in inches
+        double horizontalOffset = (cx - TARGET_CX) * (apparentDistance / FOCAL_LENGTH);
+        
+        // 3. Calculate true ground distance from camera to object
+        double heightDiff = CAMERA_HEIGHT - OBJECT_HEIGHT;
+        double groundDistance = Math.sqrt(apparentDistance * apparentDistance - heightDiff * heightDiff);
+        
+        // 4. Convert to arm base coordinates
+        double targetX = horizontalOffset;
+        double targetY = groundDistance + CAMERA_FORWARD_OFFSET;
+        double targetZ = OBJECT_HEIGHT - ARM_BASE_HEIGHT;  // Vertical offset from arm base
+        
+        // 5. Calculate planar distance (radial distance in horizontal plane)
+        double planarDistance = Math.sqrt(targetX * targetX + targetY * targetY);
+        
+        try {
+            // Calculate angles using planar distance and vertical offset
+            InverseKinematics.JointAngles angles = ik.calculateJointAngles(planarDistance, targetZ);
 
-        // Convert angles (degrees) to encoder ticks
-        int shoulderTicks = (int) InverseKinematics.degreesToTicks(angles.shoulderAngle, SHOULDER_TICKS_PER_REV);
-        int forearmTicks = (int) InverseKinematics.degreesToTicks(angles.forearmAngle, FOREARM_TICKS_PER_REV);
+            // Convert angles to encoder ticks
+            int shoulderTicks = (int) InverseKinematics.degreesToTicks(angles.shoulderAngle, SHOULDER_TICKS_PER_REV);
+            int forearmTicks = (int) InverseKinematics.degreesToTicks(angles.forearmAngle, FOREARM_TICKS_PER_REV);
 
             shoulderTicks += ArmConstants.SHOULDER_BACKLASH_COMP;
             forearmTicks += ArmConstants.FOREARM_BACKLASH_COMP;
 
-        telemetry.addData("IK Shoulder Angle", angles.shoulderAngle);
-        telemetry.addData("IK Forearm Angle", angles.forearmAngle);
-        telemetry.addData("Shoulder Ticks", shoulderTicks);
-        telemetry.addData("Forearm Ticks", forearmTicks);
+            telemetry.addData("Target Position", "X: %.1f, Y: %.1f, Z: %.1f", targetX, targetY, targetZ);
+            telemetry.addData("Shoulder Ticks", shoulderTicks);
+            telemetry.addData("Forearm Ticks", forearmTicks);
 
-        // Move arm using IK-calculated ticks
-        arm.moveArmToPosition(shoulderTicks, forearmTicks);
-        sleep(500); // wait for arm to move, tune timing
+            // Move arm
+            arm.moveArmToPosition(shoulderTicks, forearmTicks);
+            sleep(500); // Wait for arm movement
 
-        // Now perform gripper and other steps as before
-        arm.openGripper();
-        sleep(100);
+            // Gripper operations
+            arm.openGripper();
+            sleep(100);
+            arm.closeGripper();
+            sleep(100);
 
-        arm.closeGripper();
-        sleep(100);
+            // Retract arm
+            arm.moveShoulderToPosition(ArmConstants.SHOULDER_HOME_POSITION);
+            arm.rotateForearmToAngle(ArmConstants.FOREARM_HOME_POSITION);
+            sleep(500);
+            arm.openGripper();
 
-        // Retract arm
-        arm.moveShoulderToPosition(500);
-        arm.rotateForearmToAngle(-500);
-        arm.openGripper();
-
-    } catch (Exception e) {
-        telemetry.addData("IK Error", e.getMessage());
+            currentState = RobotState.RETRACTING;
+        } catch (Exception e) {
+            telemetry.addData("IK Error", e.getMessage());
+            currentState = RobotState.SEARCHING;
+        }
     }
-}
 
     private void handleCollectState() {
         // Collection done in executeCollectionSequence, no action here
@@ -289,26 +247,5 @@ private void executeCollectionSequence(double objectWidth) {
         sleep(700);
         drive.stopMotors();
         currentState = RobotState.COMPLETE;
-    }
-
-    private void adjustArmPositionBasedOnObject(double objectWidth) {
-        double targetArmPosition = calculateArmPosition(objectWidth);
-        arm.moveShoulderToPosition((int) targetArmPosition);
-    }
-
-    private double calculateArmPosition(double objectWidth) {
-        double position;
-
-        if (objectWidth < MIN_WIDTH_FOR_PICKUP) {
-            position = ARM_POSITION_OFFSET;
-        } else if (objectWidth < 500) {
-            position = ARM_POSITION_OFFSET + 100;
-        } else {
-            position = ARM_POSITION_OFFSET + 200;
-        }
-
-        position = Range.clip(position, 0, 800);
-        telemetry.addData("Target Arm Position", "%.1f", position);
-        return position;
     }
 }
