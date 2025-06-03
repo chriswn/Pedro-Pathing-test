@@ -37,9 +37,9 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     public static final double SAMPLE_LENGTH = 3.5;  // Long dimension
     public static final double SAMPLE_WIDTH = 1.5;   // Short dimension
     public static final double SAMPLE_HEIGHT = 1.5;  // Height
-    
+
     // Camera calibration (adjust through dashboard)
-    public static double FOCAL_LENGTH = 500.0; 
+    public static double FOCAL_LENGTH = 300.0;
 
     private DetectionMode mode = DetectionMode.RED_YELLOW; // Default mode
 
@@ -56,7 +56,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     private double longSide = 0;  // Length of the longer dimension (pixels)
     private String detectedColor = "None";
     private double aspectRatio = 1.0;
-  
+
     private Scalar hsvAtCentroid = new Scalar(0, 0, 0); // Store HSV values at the centroid
 
     // Frame Skipping
@@ -197,12 +197,12 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
         if (objectLongSidePixels <= 0) return 0;
         return (SAMPLE_LENGTH * FOCAL_LENGTH) / objectLongSidePixels;
     }
-    
+
     // Estimate object height above ground
     public double getObjectHeight() {
         return SAMPLE_HEIGHT;
     }
-    
+
     // Get aspect ratio for orientation detection
     public double getAspectRatio() {
         return aspectRatio;
@@ -249,13 +249,18 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
         FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
         // On-screen info: color, pixels, distance
-        String info = String.format("%s: %dpx (%.1fin)", 
-                detectedColor, 
-                (int)longSide, 
+        String info = String.format("%s: %dpx (%.1fin)",
+                detectedColor,
+                (int)longSide,
                 calculateDistance(longSide));
-                
+
         Imgproc.putText(frame, info, new Point(rect.center.x + 10, rect.center.y),
                 Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
+    }
+
+    public double getWidth() {
+        if (longSide == 0 || aspectRatio == 0) return 0;
+        return longSide / aspectRatio;
     }
 
     public boolean isObjectDetected() {

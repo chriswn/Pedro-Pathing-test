@@ -70,7 +70,7 @@ public class InverseKinematics {
         return new JointAngles(shoulderAngle, forearmAngle);
     }
 
-    public static double degreesToTicks(double degrees, double ticksPerRevolution) {
+    public static double degreesToTicks(double degrees, double ticksPerRevolution, double shoulderGearRatio) {
         return (degrees / 360.0) * ticksPerRevolution;
     }
     

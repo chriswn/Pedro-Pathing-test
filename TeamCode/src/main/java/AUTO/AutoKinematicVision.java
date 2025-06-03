@@ -11,7 +11,7 @@ import SubSystems.Arm.ArmMovement;
 import SubSystems.Drive.DriveSubsystemAuto;
 import SubSystems.Vision.TurboObjectDetectionPipeline;
 import SubSystems.InverseKinematics;
-import constants.ArmConstants;
+import Constants.ArmConstants;
 
 @Autonomous(name = "AutoKinematicVision", group = "Auto")
 public class AutoKinematicVision extends LinearOpMode {
@@ -27,9 +27,9 @@ public class AutoKinematicVision extends LinearOpMode {
     // Constants
     private static final double STRAFE_KP = 0.015;
     private static final double FORWARD_KP = 0.005;
-    private static final int TARGET_CX = 160;
+    private static final double TARGET_CX = 157.2;
     private static final int MIN_LONG_SIDE = 200;  // Minimum pixel size for pickup
-    private static final int CX_TOLERANCE = 100;
+    private static final int CX_TOLERANCE = 40;
     private static final double MAX_STRAFE_ERROR = 100.0;
     private static final long ALIGN_TIMEOUT_MS = 3000;
 
@@ -167,14 +167,15 @@ public class AutoKinematicVision extends LinearOpMode {
         double forwardPower = Range.clip(minForwardPower + (alignmentFactor * (maxForwardPower - minForwardPower)),
                 minForwardPower, maxForwardPower);
 
-        if (Math.abs(strafeError) < CX_TOLERANCE && longSide > MIN_LONG_SIDE) {
-            telemetry.addData("Alignment Successful", "Ready to collect!");
+        if (Math.abs(strafeError) > CX_TOLERANCE) {
+            drive.drive(0, strafePower, 0);  // Only strafe until centered
+        } else if (longSide <= MIN_LONG_SIDE) {
+            drive.drive(forwardPower, 0, 0); // Then drive forward
+        } else {
             drive.stopMotors();
             currentState = RobotState.COLLECTING;
             alignStartTime = 0;
             executeCollectionSequence();
-        } else {
-            drive.drive(forwardPower, strafePower, 0);
         }
     }
 
@@ -205,8 +206,8 @@ public class AutoKinematicVision extends LinearOpMode {
             InverseKinematics.JointAngles angles = ik.calculateJointAngles(planarDistance, targetZ);
 
             // Convert angles to encoder ticks
-            int shoulderTicks = (int) InverseKinematics.degreesToTicks(angles.shoulderAngle, SHOULDER_TICKS_PER_REV);
-            int forearmTicks = (int) InverseKinematics.degreesToTicks(angles.forearmAngle, FOREARM_TICKS_PER_REV);
+            int shoulderTicks = (int) InverseKinematics.degreesToTicks(angles.shoulderAngle, SHOULDER_TICKS_PER_REV, ArmConstants.SHOULDER_GEAR_RATIO);
+            int forearmTicks = (int) InverseKinematics.degreesToTicks(angles.forearmAngle, FOREARM_TICKS_PER_REV, ArmConstants.SHOULDER_GEAR_RATIO);
 
             shoulderTicks += ArmConstants.SHOULDER_BACKLASH_COMP;
             forearmTicks += ArmConstants.FOREARM_BACKLASH_COMP;

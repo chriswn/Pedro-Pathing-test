@@ -1,4 +1,4 @@
-package constants;
+package Constants;
 
 public class ArmConstants {
     // Core Hex on Forearm
@@ -16,4 +16,6 @@ public class ArmConstants {
     // Gear ratios
     public static final double SHOULDER_GEAR_RATIO = 5.0;   // 5:1 reduction
     public static final double FOREARM_GEAR_RATIO = 10.0;   // Worm gear reduction
+    public static final int SHOULDER_HOME_POSITION =1;
+    public static final int FOREARM_HOME_POSITION = 1 ;
 }

@@ -4,6 +4,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
+
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 public class ArmMovement {
@@ -67,7 +69,7 @@ public class ArmMovement {
 
         // Apply gravity compensation to shoulder
         double shoulderPower = calculateShoulderPower(shoulderTargetTicks);
-        shoulder.setPower(shoulderPower);
+        shoulder.setPower(1);
         forearm.setPower(MOTOR_POWER);
 
         ElapsedTime runtime = new ElapsedTime();
@@ -122,7 +124,7 @@ public class ArmMovement {
         telemetry.update();
     }
     
-    public void logGripperPosition() {
+    public void Gripper() {
         telemetry.addData("Left Claw", leftClaw.getPosition());
         telemetry.addData("Right Claw", rightClaw.getPosition());
         telemetry.update();
