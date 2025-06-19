@@ -180,7 +180,7 @@ private void handleAlignState() {
 
     private void executeCollectionSequence(double objectWidth) {
         // Get distance to the object
-        double objectDistance = objectDetector.calculateDistance(objectWidth);  // Use the calculateDistance function from the vision pipeline
+        double objectDistance = objectDetector.calculateDistance(objectWidth, objectDetector.getAspectRatio());  // Use the calculateDistance function from the vision pipeline
 
         // Adjust arm based on the detected object size and distance
         adjustArmPositionBasedOnObject(objectWidth);
