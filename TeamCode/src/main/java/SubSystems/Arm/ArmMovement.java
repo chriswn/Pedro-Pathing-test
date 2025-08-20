@@ -66,6 +66,9 @@ public class ArmMovement {
 
         shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         forearm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        shoulder.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        forearm.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
 
         // Apply gravity compensation to shoulder
         double shoulderPower = calculateShoulderPower(shoulderTargetTicks);
@@ -142,6 +145,9 @@ public class ArmMovement {
         double power = calculateShoulderPower(ticks);
         shoulder.setTargetPosition(ticks);
         shoulder.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        shoulder.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        forearm.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         shoulder.setPower(power);
         
         ElapsedTime timer = new ElapsedTime();

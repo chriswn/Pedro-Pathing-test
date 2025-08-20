@@ -4,6 +4,7 @@ import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+
 import androidx.core.math.MathUtils;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
@@ -12,6 +13,7 @@ import org.firstinspires.ftc.vision.VisionProcessor;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.openftc.easyopencv.OpenCvPipeline;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -170,7 +172,7 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
             }
 
             // Calculate distance
-            double distance = calculateDistance(longSide);
+            double distance = calculateDistance(longSide, aspectRatio);
 
             // Update telemetry
             telemetry.addData("Detected Color", detectedColor);
@@ -193,9 +195,13 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     }
 
     // Calculate distance using 3.5" dimension
-    public double calculateDistance(double objectLongSidePixels) {
-        if (objectLongSidePixels <= 0) return 0;
-        return (SAMPLE_LENGTH * FOCAL_LENGTH) / objectLongSidePixels;
+    public double calculateDistance(double objectLongSidePixels, double aspectRatio) {
+        if (objectLongSidePixels <= 0 || aspectRatio <= 0) return 0;
+
+        // Use the correct real-world length based on orientation
+        double realWorldLength = (aspectRatio > 1.7) ? SAMPLE_LENGTH : SAMPLE_WIDTH;
+
+        return (realWorldLength * FOCAL_LENGTH) / objectLongSidePixels;
     }
 
     // Estimate object height above ground
@@ -245,14 +251,14 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
         TelemetryPacket packet = new TelemetryPacket();
         packet.fieldOverlay()
                 .setFill("green")
-                .fillRect((int)rect.center.x - 50, (int)rect.center.y - 25, 100, 50);
+                .fillRect((int) rect.center.x - 50, (int) rect.center.y - 25, 100, 50);
         FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
         // On-screen info: color, pixels, distance
         String info = String.format("%s: %dpx (%.1fin)",
                 detectedColor,
-                (int)longSide,
-                calculateDistance(longSide));
+                (int) longSide,
+                calculateDistance(longSide, aspectRatio));
 
         Imgproc.putText(frame, info, new Point(rect.center.x + 10, rect.center.y),
                 Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
@@ -268,8 +274,19 @@ public class TurboObjectDetectionPipeline extends OpenCvPipeline implements Visi
     }
 
     // Getters for vision data
-    public double getCentroidX() { return cX; }
-    public double getCentroidY() { return cY; }
-    public double getLongSidePixels() { return longSide; }
-    public String getDetectedColor() { return detectedColor; }
+    public double getCentroidX() {
+        return cX;
+    }
+
+    public double getCentroidY() {
+        return cY;
+    }
+
+    public double getLongSidePixels() {
+        return longSide;
+    }
+
+    public String getDetectedColor() {
+        return detectedColor;
+    }
 }
