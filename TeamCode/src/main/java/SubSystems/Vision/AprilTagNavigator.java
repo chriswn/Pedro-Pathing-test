@@ -32,21 +32,22 @@ public class AprilTagNavigator {
     // AprilTag field positions and specs are centralized in FieldConstants
 
     // Detection parameters optimized for DECODE field
-    private final double MIN_DETECTION_DISTANCE = 6.0; // Minimum distance for reliable detection
+    // Based on FTC SDK recommendations and field testing
+    private final double MIN_DETECTION_DISTANCE = 6.0; // Minimum distance for reliable detection (inches)
     private final double MAX_DETECTION_DISTANCE = 120.0; // Maximum distance for detection (increased for goal tags)
-    private final double MIN_DETECTION_CONFIDENCE = 0.6; // Minimum confidence threshold (slightly lowered for goal
-                                                         // tags)
+    private final double MIN_DETECTION_CONFIDENCE = 0.6; // Minimum confidence threshold (0.0-1.0, lowered for goal tags)
 
     public AprilTagNavigator(DriveSubsystem driveSubsystem, HardwareMap hardwareMap, Telemetry telemetry) {
         this.driveSubsystem = driveSubsystem;
         this.telemetry = telemetry;
 
         // Initialize AprilTag vision for DECODE field
+        // Using FTC SDK 8.2+ AprilTag processor with 36h11 family
         aprilTag = new AprilTagProcessor.Builder()
-                .setDrawTagID(true)
-                .setDrawTagOutline(true)
-                .setDrawAxes(true)
-                .setDrawCubeProjection(true)
+                .setDrawTagID(true)           // Show tag ID numbers
+                .setDrawTagOutline(true)      // Draw colored border around detected tags
+                .setDrawAxes(true)            // Show RGB axes at tag center
+                .setDrawCubeProjection(true)  // Show 3D cube projection
                 .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11) // DECODE uses 36h11 tag family
                 .build();
 
@@ -59,6 +60,9 @@ public class AprilTagNavigator {
     /**
      * Get the best AprilTag detection for localization
      * 
+     * Filters detections by distance and confidence, returns closest reliable detection.
+     * Uses FTC SDK pose data: range = direct distance to tag center.
+     * 
      * @return Best AprilTag detection or null if none found
      */
     public AprilTagDetection getBestDetection() {
@@ -67,6 +71,8 @@ public class AprilTagNavigator {
             return null;
 
         // Filter detections by distance and confidence
+        // tag.ftcPose.range = direct distance to tag center (inches)
+        // tag.decisionMargin = detection confidence (0.0-1.0)
         return detections.stream()
                 .filter(tag -> tag.ftcPose.range >= MIN_DETECTION_DISTANCE)
                 .filter(tag -> tag.ftcPose.range <= MAX_DETECTION_DISTANCE)
@@ -106,9 +112,14 @@ public class AprilTagNavigator {
     /**
      * Calculate robot's field position based on AprilTag detection
      * 
+     * Uses FTC SDK coordinate system:
+     * - X axis: points to the right (positive = right of camera center)
+     * - Y axis: points straight outward from camera lens (positive = forward)
+     * - Z axis: points upward (positive = up from camera)
+     * - Yaw: rotation around Z axis (positive = counterclockwise)
+     * 
      * @param detection AprilTag detection
-     * @return Robot's field position as TileCoordinate, or null if calculation
-     *         fails
+     * @return Robot's field position as TileCoordinate, or null if calculation fails
      */
     public TileCoordinate calculateRobotPosition(AprilTagDetection detection) {
         if (detection == null)
@@ -120,10 +131,13 @@ public class AprilTagNavigator {
             return null;
         }
 
-        // Get relative position from robot to tag
-        double relativeX = detection.ftcPose.x; // Left/Right from robot
-        double relativeY = detection.ftcPose.y; // Forward/Backward from robot
-        double relativeYaw = Math.toRadians(detection.ftcPose.yaw); // Robot's heading relative to tag
+        // Get relative position from robot to tag using FTC SDK coordinate system
+        // detection.ftcPose.x = sideways offset (positive = right of camera center)
+        // detection.ftcPose.y = forward distance (positive = forward from camera)
+        // detection.ftcPose.yaw = tag rotation around Z axis (positive = counterclockwise)
+        double relativeX = detection.ftcPose.x; // Left/Right from robot (FTC X axis)
+        double relativeY = detection.ftcPose.y; // Forward/Backward from robot (FTC Y axis)
+        double relativeYaw = Math.toRadians(detection.ftcPose.yaw); // Tag rotation relative to camera
 
         // Convert to field coordinates
         // Tag field position
@@ -132,18 +146,19 @@ public class AprilTagNavigator {
         double tagHeading = Math.toRadians(tagFieldPos[2]);
 
         // Calculate robot's field position
-        // First, rotate relative position by tag's heading
+        // First, rotate relative position by tag's heading to align with field coordinates
         double cosTag = Math.cos(tagHeading);
         double sinTag = Math.sin(tagHeading);
 
         double rotatedX = relativeX * cosTag - relativeY * sinTag;
         double rotatedY = relativeX * sinTag + relativeY * cosTag;
 
-        // Then add to tag's field position
+        // Then add to tag's field position to get robot's absolute position
         double robotX = tagX + rotatedX;
         double robotY = tagY + rotatedY;
 
         // Calculate robot's field heading
+        // Robot heading = tag's field heading + relative yaw from tag
         double robotHeading = tagHeading + relativeYaw;
 
         // Create and return tile coordinate
