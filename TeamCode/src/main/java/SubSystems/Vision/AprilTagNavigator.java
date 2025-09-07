@@ -12,6 +12,7 @@ import java.util.Comparator;
 
 import SubSystems.Drive.DriveSubsystem;
 import SubSystems.Drive.TileCoordinate;
+import Constants.FieldConstants;
 
 /**
  * AprilTag-based localization system for tile-based navigation.
@@ -28,27 +29,7 @@ public class AprilTagNavigator {
     private VisionPortal visionPortal;
     private Telemetry telemetry;
 
-    // AprilTag field positions for DECODE field
-    // Based on FTC Competition Manual Section 9.10 AprilTags
-    // Format: {tagId, x_inches, y_inches, heading_degrees}
-    private static final double[][] APRILTAG_POSITIONS = {
-            // Blue Alliance Goal - Tag ID 20
-            // Positioned at blue alliance goal (left side of field)
-            { 20, 0, 72, 0 }, // Blue goal at left edge, center height, facing right
-
-            // Red Alliance Goal - Tag ID 24
-            // Positioned at red alliance goal (right side of field)
-            { 24, 144, 72, 180 }, // Red goal at right edge, center height, facing left
-
-            // Note: Tags 21, 22, 23 are on the OBELISK outside the field
-            // and are NOT recommended for robot navigation as their exact
-            // placement may vary from match to match
-    };
-
-    // AprilTag specifications for DECODE field
-    // Based on FTC Competition Manual Section 9.10
-    public static final double APRILTAG_SIZE_INCHES = 8.125; // DECODE AprilTags are 8.125" square
-    public static final double APRILTAG_SIZE_CM = 20.65; // ~20.65 cm square
+    // AprilTag field positions and specs are centralized in FieldConstants
 
     // Detection parameters optimized for DECODE field
     private final double MIN_DETECTION_DISTANCE = 6.0; // Minimum distance for reliable detection
@@ -114,7 +95,7 @@ public class AprilTagNavigator {
      * @return Field position as {x, y, heading} or null if not found
      */
     private double[] getAprilTagFieldPosition(int tagId) {
-        for (double[] position : APRILTAG_POSITIONS) {
+        for (double[] position : FieldConstants.APRILTAG_POSITIONS) {
             if ((int) position[0] == tagId) {
                 return new double[] { position[1], position[2], position[3] };
             }
@@ -423,6 +404,99 @@ public class AprilTagNavigator {
 
         return true;
     }
+
+	/**
+	 * Update robot position using triangulation from both alliance goal tags
+	 * when available. Falls back to best single alliance goal detection when
+	 * only one is visible.
+	 *
+	 * Triangulation approach:
+	 * - Compute independent robot poses from each valid detection (IDs 20, 24)
+	 * - Fuse by simple averaging of positions and headings
+	 * - If only one detection available, use that single pose
+	 *
+	 * @return True if position was successfully updated, false otherwise
+	 */
+	public boolean updateRobotPositionFromTriangulation() {
+		List<AprilTagDetection> detections = aprilTag.getDetections();
+		if (detections.isEmpty()) {
+			if (telemetry != null) telemetry.addData("AprilTag Localization", "No detections");
+			return false;
+		}
+
+		// Filter to valid alliance goal detections only (IDs 20 and 24) and within thresholds
+		List<AprilTagDetection> goalDetections = detections.stream()
+				.filter(tag -> tag.id == 20 || tag.id == 24)
+				.filter(tag -> tag.ftcPose.range >= MIN_DETECTION_DISTANCE)
+				.filter(tag -> tag.ftcPose.range <= MAX_DETECTION_DISTANCE)
+				.filter(tag -> tag.decisionMargin >= MIN_DETECTION_CONFIDENCE)
+				.collect(java.util.stream.Collectors.toList());
+
+		if (goalDetections.isEmpty()) {
+			if (telemetry != null) telemetry.addData("AprilTag Localization", "No alliance goal detections");
+			return false;
+		}
+
+		TileCoordinate poseFrom20 = null;
+		TileCoordinate poseFrom24 = null;
+		double headingFrom20 = Double.NaN;
+		double headingFrom24 = Double.NaN;
+
+		for (AprilTagDetection det : goalDetections) {
+			TileCoordinate pose = calculateRobotPosition(det);
+			if (pose == null) continue;
+			double heading = driveSubsystem != null ? driveSubsystem.getCurrentHeading() : Double.NaN;
+			// calculateRobotPosition already updates driveSubsystem with heading; we derive heading directly from tag data too
+			double[] tagFieldPos = getAprilTagFieldPosition(det.id);
+			double tagHeading = Math.toRadians(tagFieldPos != null ? tagFieldPos[2] : 0);
+			double relativeYaw = Math.toRadians(det.ftcPose.yaw);
+			double computedHeading = tagHeading + relativeYaw;
+
+			if (det.id == 20) {
+				poseFrom20 = pose;
+				headingFrom20 = computedHeading;
+			} else if (det.id == 24) {
+				poseFrom24 = pose;
+				headingFrom24 = computedHeading;
+			}
+		}
+
+		TileCoordinate fused;
+		double fusedHeading;
+
+		if (poseFrom20 != null && poseFrom24 != null) {
+			// Simple average fusion
+			double x = (poseFrom20.getX() + poseFrom24.getX()) / 2.0;
+			double y = (poseFrom20.getY() + poseFrom24.getY()) / 2.0;
+			fused = new TileCoordinate(x, y);
+			// Average headings taking wrap-around into account
+			double s = Math.sin(headingFrom20) + Math.sin(headingFrom24);
+			double c = Math.cos(headingFrom20) + Math.cos(headingFrom24);
+			fusedHeading = Math.atan2(s, c);
+		} else if (poseFrom20 != null) {
+			fused = poseFrom20;
+			fusedHeading = headingFrom20;
+		} else if (poseFrom24 != null) {
+			fused = poseFrom24;
+			fusedHeading = headingFrom24;
+		} else {
+			if (telemetry != null) telemetry.addData("AprilTag Localization", "No valid triangulation poses");
+			return false;
+		}
+
+		if (driveSubsystem != null) {
+			driveSubsystem.setPosition(fused);
+			driveSubsystem.setHeading(fusedHeading);
+		}
+
+		if (telemetry != null) {
+			telemetry.addData("AprilTag Triangulation", "Success");
+			telemetry.addData("Field Position", "X: %.1f, Y: %.1f", fused.getX(), fused.getY());
+			telemetry.addData("Heading", "%.1f°", Math.toDegrees(fusedHeading));
+		}
+
+		return true;
+	}
 
     /**
      * Update telemetry with DECODE-specific localization information
