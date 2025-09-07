@@ -95,7 +95,7 @@ public class AutoKinematicVision extends LinearOpMode {
         // Arm initialization sequence
         arm.moveShoulderToPosition(100); // Engage encoders
         sleep(100);
-        arm.stopMotors();
+        arm.stopMotors   ();
         arm.closeGripper();
         arm.openGripper();
 
